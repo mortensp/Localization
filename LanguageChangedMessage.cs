@@ -1,6 +1,6 @@
 ﻿using System.Globalization;
 
-namespace Localization;
+namespace String.Localization;
 
 // Simple message for EventAggregator
 public class LanguageChangedMessage

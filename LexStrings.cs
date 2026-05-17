@@ -1,7 +1,14 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
+using System.Reflection;
+using System.Resources;
 
-namespace DBF.Localization;
+
+using System;
+using System.Collections.Generic;
+
+namespace String.Localization;
 
 public class LexStrings : ObservableCollection<LexString>
 {
@@ -57,4 +64,3 @@ public class LexStrings : ObservableCollection<LexString>
             screen.NotifyOfPropertyChange(propertyName);
     }
 }
-

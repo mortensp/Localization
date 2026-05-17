@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace DBF.Localization
+namespace String.Localization
 {
     /// <summary>
     /// LocalizedString holder en reference til Lex-egenskaben og notificerer ændringer
