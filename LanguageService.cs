@@ -165,132 +165,34 @@ public sealed class LanguageService : INotifyPropertyChanged
         }
 
         public LanguageService(IEventAggregator events) : this() => _events = events;
+    #endregion
 
-        #region Public Static Methods
-            /// <summary>
-            /// Gets all translations for a given resource key across available cultures.
-            /// </summary>
-            /// <param name="type"></param>
-            /// <param name="key"></param>
-            /// <returns></returns>
-            /// <exception cref="ArgumentNullException"></exception>
-            /// <exception cref="InvalidOperationException"></exception>
-            /// <usages>
-            ///   <example>
-            ///     var translations = LanguageService.GetTranslationsFor(typeof(Lex), nameof(Lex.Red));
-            ///   </example>
-            /// </usages>
-            public static IDictionary<CultureInfo, string> GetTranslationsFor(Type type, string key)
+    #region Public Static Methods
+    /// <summary>
+    /// Get the Resource Key for a given Translated Value by searching through all available cultures of the specified resource type.
+    /// </summary>
+    /// <param name="type"></param>
+    /// <param name="translatedValue"></param>
+    /// <returns></returns>
+    public static string GetKeyForTranslation(Type type, string translatedValue)
+        {
+            if (string.IsNullOrEmpty(translatedValue))
+                return null;
+
+            var rmProp = type.GetProperty("ResourceManager", BindingFlags.NonPublic | BindingFlags.Static);
+
+            if (rmProp == null)
+                return null;
+
+            try
             {
-                if (type == null)
-                    throw new ArgumentNullException(nameof(type));
-
-                if (string.IsNullOrEmpty(key))
-                    throw new ArgumentNullException(nameof(key));
-
-                var rmProp = type.GetProperty("ResourceManager", BindingFlags.NonPublic | BindingFlags.Static);
-
-                if (rmProp == null)
-                    throw new InvalidOperationException("ResourceManager property not found on resource type.");
-
                 var rm = (ResourceManager)rmProp.GetValue(null);
 
+                // Search for all available cultures
                 var cultures = LanguageService.Instance?.GetAvailableCultures()
                             ?? CultureInfo.GetCultures(CultureTypes.SpecificCultures);
 
-                var result = new Dictionary<CultureInfo, string>();
-
                 foreach (var culture in cultures)
-                    try
-                    {
-                        var value = rm.GetString(key, culture);
-
-                        if (!string.IsNullOrEmpty(value))
-                            result[culture] = value;
-                    }
-                    catch { /* ignore cultures that fail */ }
-
-                return result;
-            }
-
-            public static string Translate(Type type, string key)
-            {
-                if (string.IsNullOrEmpty(key))
-                    return string.Empty;
-
-                var rmProp = type.GetProperty("ResourceManager", BindingFlags.NonPublic | BindingFlags.Static);
-
-                if (rmProp != null)
-                    try
-                    {
-                        var rm   = (ResourceManager)rmProp.GetValue(null);
-                        var text = rm?.GetString(key, Instance.CurrentCulture);
-
-                        if (!string.IsNullOrEmpty(text))
-                            return text;
-                    }
-                    catch { }
-
-                return "Key: " + key;
-            }
-
-            /// <summary>
-            /// Gets all translations for a given resource expression across available cultures.
-            /// </summary>
-            /// <param name="resourceExpression"></param>
-            /// <returns></returns>
-            /// <exception cref="ArgumentNullException"></exception>
-            /// <exception cref="ArgumentException"></exception>
-            /// <usages>
-            ///   <example>
-            ///     var translations = LanguageService.GetTranslationsFor(() => Lex.Red);
-            ///   </example>
-            /// </usages>
-            public static IDictionary<CultureInfo, string> GetTranslationsFor(Expression<Func<string>> resourceExpression)
-            {
-                if (resourceExpression == null)
-                    throw new ArgumentNullException(nameof(resourceExpression));
-
-                if (resourceExpression.Body is not MemberExpression member)
-                    throw new ArgumentException("Expression must be a member access (e.g. () => Lex.Red).", nameof(resourceExpression));
-
-                var memberName    = member.Member.Name;
-                var declaringType = member.Member.DeclaringType ?? throw new InvalidOperationException("Declaring type not found for member.");
-
-                return GetTranslationsFor(declaringType, memberName);
-            }
-
-            /// <summary>
-            ///  Finds the resource key corresponding to a given translated value and retrieves all translations for that key across available cultures.
-            ///  Note: value-to-key mapping can be ambiguous — prefer the expression overload.
-            /// </summary>
-            /// <param name="resourceType"></param>
-            /// <param name="translatedValue"></param>
-            /// <returns></returns>
-            /// <exception cref="ArgumentNullException"></exception>
-            /// <exception cref="InvalidOperationException"></exception>
-            public static IDictionary<CultureInfo, string> GetTranslationsForValue(Type resourceType, string translatedValue)
-            {
-                if (resourceType == null)
-                    throw new ArgumentNullException(nameof(resourceType));
-
-                if (translatedValue == null)
-                    throw new ArgumentNullException(nameof(translatedValue));
-
-                var rmProp = resourceType.GetProperty("ResourceManager", BindingFlags.NonPublic | BindingFlags.Static);
-
-                if (rmProp == null)
-                    throw new InvalidOperationException("ResourceManager property not found on resource type.");
-
-                var rm = (ResourceManager)rmProp.GetValue(null);
-
-                var cultures = LanguageService.Instance?.GetAvailableCultures()
-                            ?? CultureInfo.GetCultures(CultureTypes.SpecificCultures);
-
-                string foundKey = null;
-
-                foreach (var culture in cultures)
-                {
                     try
                     {
                         var rs = rm.GetResourceSet(culture, true, false);
@@ -300,25 +202,180 @@ public sealed class LanguageService : INotifyPropertyChanged
 
                         foreach (DictionaryEntry entry in rs)
                         {
-                            if (entry.Value is string s && s == translatedValue)
-                            {
-                                foundKey = entry.Key as string;
-                                break;
-                            }
+                            if (entry.Value is string s && string.Equals(s, translatedValue, StringComparison.Ordinal))
+                                return entry.Key as string;
                         }
                     }
+
                     catch { }
-
-                    if (foundKey != null)
-                        break;
-                }
-
-                if (foundKey == null)
-                    throw new InvalidOperationException("Could not locate resource key for the provided translated value.");
-
-                return GetTranslationsFor(resourceType, foundKey);
             }
-        #endregion
+
+            catch { }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Get the Localized String for af given Key
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="key"></param>
+        /// <returns>The Localized string</returns>
+        ///   <example>
+        ///     var LocalizedString = LanguageService.GetTranslationFor(typeof(Lex), nameof(Lex.Red));
+        ///   </example>
+        /// </usages>
+        public static string GetTranslationFor(Type type, string key)
+        {
+            if (string.IsNullOrEmpty(key))
+                return string.Empty;
+
+            var rmProp = type.GetProperty("ResourceManager", BindingFlags.NonPublic | BindingFlags.Static);
+
+            if (rmProp != null)
+                try
+                {
+                    var rm   = (ResourceManager)rmProp.GetValue(null);
+                    var text = rm?.GetString(key, Instance.CurrentCulture);
+
+                    if (!string.IsNullOrEmpty(text))
+                        return text;
+                }
+                catch { }
+
+            return "Key: " + key;
+        }
+
+        /// <summary>
+        /// Gets all translations for a given resource key across available cultures.
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <usages>
+        ///   <example>
+        ///     var translations = LanguageService.GetTranslationsFor(typeof(Lex), nameof(Lex.Red));
+        ///   </example>
+        /// </usages>
+        public static IDictionary<CultureInfo, string> GetTranslationsFor(Type type, string key)
+        {
+            if (type == null)
+                throw new ArgumentNullException(nameof(type));
+
+            if (string.IsNullOrEmpty(key))
+                throw new ArgumentNullException(nameof(key));
+
+            var rmProp = type.GetProperty("ResourceManager", BindingFlags.NonPublic | BindingFlags.Static);
+
+            if (rmProp == null)
+                throw new InvalidOperationException("ResourceManager property not found on resource type.");
+
+            var rm = (ResourceManager)rmProp.GetValue(null);
+
+            var cultures = LanguageService.Instance?.GetAvailableCultures()
+                        ?? CultureInfo.GetCultures(CultureTypes.SpecificCultures);
+
+            var result = new Dictionary<CultureInfo, string>();
+
+            foreach (var culture in cultures)
+                try
+                {
+                    var value = rm.GetString(key, culture);
+
+                    if (!string.IsNullOrEmpty(value))
+                        result[culture] = value;
+                }
+                catch { /* ignore cultures that fail */ }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Gets all translations for a given resource expression across available cultures.
+        /// </summary>
+        /// <param name="resourceExpression"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <usages>
+        ///   <example>
+        ///     var translations = LanguageService.GetTranslationsFor(() => Lex.Red);
+        ///   </example>
+        /// </usages>
+        public static IDictionary<CultureInfo, string> GetTranslationsFor(Expression<Func<string>> resourceExpression)
+        {
+            if (resourceExpression == null)
+                throw new ArgumentNullException(nameof(resourceExpression));
+
+            if (resourceExpression.Body is not MemberExpression member)
+                throw new ArgumentException("Expression must be a member access (e.g. () => Lex.Red).", nameof(resourceExpression));
+
+            var memberName    = member.Member.Name;
+            var declaringType = member.Member.DeclaringType ?? throw new InvalidOperationException("Declaring type not found for member.");
+
+            return GetTranslationsFor(declaringType, memberName);
+        }
+
+        /// <summary>
+        ///  Finds the resource key corresponding to a given translated value and retrieves all translations for that key across available cultures.
+        ///  Note: value-to-key mapping can be ambiguous — prefer the expression overload.
+        /// </summary>
+        /// <param name="resourceType"></param>
+        /// <param name="translatedValue"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        public static IDictionary<CultureInfo, string> GetTranslationsForValue(Type resourceType, string translatedValue)
+        {
+            if (resourceType == null)
+                throw new ArgumentNullException(nameof(resourceType));
+
+            if (translatedValue == null)
+                throw new ArgumentNullException(nameof(translatedValue));
+
+            var rmProp = resourceType.GetProperty("ResourceManager", BindingFlags.NonPublic | BindingFlags.Static);
+
+            if (rmProp == null)
+                throw new InvalidOperationException("ResourceManager property not found on resource type.");
+
+            var rm = (ResourceManager)rmProp.GetValue(null);
+
+            var cultures = LanguageService.Instance?.GetAvailableCultures()
+                        ?? CultureInfo.GetCultures(CultureTypes.SpecificCultures);
+
+            string foundKey = null;
+
+            foreach (var culture in cultures)
+            {
+                try
+                {
+                    var rs = rm.GetResourceSet(culture, true, false);
+
+                    if (rs == null)
+                        continue;
+
+                    foreach (DictionaryEntry entry in rs)
+                    {
+                        if (entry.Value is string s && s == translatedValue)
+                        {
+                            foundKey = entry.Key as string;
+                            break;
+                        }
+                    }
+                }
+                catch { }
+
+                if (foundKey != null)
+                    break;
+            }
+
+            if (foundKey == null)
+                throw new InvalidOperationException("Could not locate resource key for the provided translated value.");
+
+            return GetTranslationsFor(resourceType, foundKey);
+        }
     #endregion
 
     #region Private Methods
